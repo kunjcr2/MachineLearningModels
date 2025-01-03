@@ -1,0 +1,88 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+from xgboost import XGBRegressor, train
+from sklearn.ensemble import RandomForestRegressor
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import LabelEncoder
+#%% md
+# Model and encoder instances
+#%%
+encoder = LabelEncoder()
+xgb_model = XGBRegressor()
+rf_model = RandomForestRegressor()
+#%% md
+# Training and testing data importing
+#%%
+train_data = pd.read_csv('C:/Users/kunjs/OneDrive/Desktop/Desktop/Projects/MLDemo/housePrice/train.csv')
+test_data = pd.read_csv('C:/Users/kunjs/OneDrive/Desktop/Desktop/Projects/MLDemo/housePrice/test.csv')
+
+train_data.head(100)
+#%%
+len(train_data)
+#%% md
+# *Data Cleaning*
+
+    This code, when called fills every NaN object with mean of the column as it may create issues is with further method calls.
+    After that, second for loops converts all Objects (especially Strings) into an integer using *Label-Encoder* which makes it easier to train the model.
+    And finally it standardises the years and drops ID which is of no use
+#%%
+def data_cleaning(data):
+    for col in data.columns:
+        if data[col].dtype == 'object':
+            data[col] = encoder.fit_transform(data[col])
+    for col in data.isna():
+        data[col] = data[col].fillna(data[col].mean())
+    for col in ['YearBuilt', 'YearRemodAdd', 'GarageYrBlt', 'YrSold']:
+        data[col] = data[col] - 2000
+    data.drop(['Id'], axis=1, inplace=True)
+    
+    return data
+#%% md
+# Seaborn Heatmap (raw)
+    Must be called once you have called data cleaning, or else wouldnt work.
+#%%
+def createHeatMap(data): 
+    corr_mat = data.corr()
+    sns.heatmap(corr_mat, annot=True, center=0)
+    plt.show()
+#%%
+train_data = data_cleaning(train_data)
+test_data = data_cleaning(test_data)
+#%% md
+# Experiment
+    RandomForest model experiment to find to the important features
+#%%
+search_space_demo = {
+    'n_estimators': [100,200,300],
+    # 'learning rate': [0.01,0.1],
+    'max_depth': [10,12,13],
+    # 'subsample': [0.8,0.7]
+}
+
+X_demo = train_data.iloc[:,:-1]
+y_demo = train_data.iloc[:,-1]
+X_demo_train, X_demo_test, y_demo_train, y_demo_test = train_test_split(X_demo, y_demo, )
+
+rf_model_demo = RandomForestRegressor()
+
+GS_demo = GridSearchCV(rf_model_demo, search_space_demo, cv=5, n_jobs=-1,verbose=2)
+
+GS_demo.fit(X_demo_train, y_demo_train)
+#%%
+importances_demo = GS_demo.best_estimator_.feature_importances_
+indices_demo = np.argsort(importances_demo)
+
+plt.barh(indices_demo, importances_demo, align='center')
+plt.show()
+#%%
+for i, col in enumerate(X_demo_train.columns):
+    if i in [38,39,40,41,42,43,44,45,46,47,48,60,61,62,63,64,65,66,67,76,77,78,79,80]:
+        X_demo_train.drop(col, axis=1, inplace=True)
+#%%
+GS_demo.best_score_
